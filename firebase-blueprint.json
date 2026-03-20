@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "General Manager profile information",
+      "type": "object",
+      "properties": {
+        "teamName": { "type": "string" },
+        "stadiumName": { "type": "string" },
+        "bio": { "type": "string" },
+        "gender": { "type": "string" },
+        "avatar": { "type": "string" },
+        "balance": { "type": "number" },
+        "reputation": { "type": "number" },
+        "changesCountToday": { "type": "integer" },
+        "lastChangeDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamName", "balance"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "Basketball player stats and attributes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "nationality": { "type": "string" },
+        "height": { "type": "number" },
+        "weight": { "type": "number" },
+        "position": { "type": "string", "enum": ["PG", "SG", "SF", "PF", "C"] },
+        "attributes": { "type": "object" },
+        "specialAbility": { "type": "string" },
+        "character": { "type": "string" },
+        "fatigue": { "type": "number" },
+        "form": { "type": "number" },
+        "totalMinutes": { "type": "number" },
+        "injuryStatus": { "type": "string" },
+        "teamId": { "type": "string" }
+      }
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Team staff members",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string" },
+        "ability": { "type": "number" },
+        "characterization": { "type": "string" },
+        "tacticsSpeciality": { "type": "string" },
+        "teamId": { "type": "string" }
+      }
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Basketball team data",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "points": { "type": "number" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "goalsFor": { "type": "number" },
+        "goalsAgainst": { "type": "number" },
+        "motivation": { "type": "number" },
+        "momentum": { "type": "number" },
+        "chemistry": { "type": "number" },
+        "reputation": { "type": "number" },
+        "fansCount": { "type": "number" },
+        "fanEnthusiasm": { "type": "number" },
+        "facilities": { "type": "object" }
+      }
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Game match data",
+      "type": "object",
+      "properties": {
+        "homeTeamId": { "type": "string" },
+        "awayTeamId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "score": { "type": "object" },
+        "log": { "type": "array" },
+        "status": { "type": "string", "enum": ["scheduled", "live", "finished"] },
+        "leagueId": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile and team management"
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Team statistics and facilities"
+    },
+    "/players/{playerId}": {
+      "schema": "Player",
+      "description": "Player attributes and status"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Staff abilities and character"
+    },
+    "/leagues/{leagueId}": {
+      "schema": { "type": "object" },
+      "description": "League hierarchy and standings"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Match schedule and results"
+    }
+  }
+}

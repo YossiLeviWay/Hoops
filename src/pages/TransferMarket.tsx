@@ -1,0 +1,154 @@
+import React from "react";
+import { motion } from "motion/react";
+import { 
+  Search, 
+  Filter, 
+  DollarSign, 
+  Clock, 
+  ChevronRight,
+  ArrowUpRight,
+  History,
+  Tag
+} from "lucide-react";
+
+const mockMarketPlayers = [
+  { id: "1", name: "Luka Doncic", pos: "PG", rating: 91, price: 1250000, team: "Dallas Mavericks", expires: "48h 12m", nationality: "Slovenia" },
+  { id: "2", name: "Jayson Tatum", pos: "SF", rating: 89, price: 950000, team: "Boston Celtics", expires: "12h 45m", nationality: "USA" },
+  { id: "3", name: "Devin Booker", pos: "SG", rating: 87, price: 820000, team: "Phoenix Suns", expires: "71h 59m", nationality: "USA" },
+  { id: "4", name: "Jimmy Butler", pos: "SF", rating: 86, price: 750000, team: "Miami Heat", expires: "24h 00m", nationality: "USA" },
+];
+
+export default function TransferMarket() {
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  return (
+    <div className="p-6 lg:p-10 space-y-8">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Transfer Market</h1>
+          <p className="text-zinc-500">Buy and sell players to strengthen your squad.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="px-6 py-2 bg-white border border-orange-100 rounded-xl font-semibold shadow-sm hover:bg-orange-50 transition-all flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Transfer History
+          </button>
+          <button className="btn-primary flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            List Player
+          </button>
+        </div>
+      </header>
+
+      {/* Market Filters */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <div className="md:col-span-2 relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+          <input 
+            type="text" 
+            placeholder="Search players by name or team..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-orange-100 focus:outline-none focus:ring-2 focus:ring-basketball-orange bg-white shadow-sm"
+          />
+        </div>
+        <button className="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-orange-100 rounded-2xl font-bold text-sm text-zinc-600 hover:bg-orange-50 transition-all">
+          <Filter className="w-5 h-5" />
+          More Filters
+        </button>
+        <div className="flex items-center justify-center gap-2 px-6 py-3 bg-basketball-orange/10 border border-basketball-orange/20 rounded-2xl font-bold text-sm text-basketball-orange">
+          <DollarSign className="w-5 h-5" />
+          Balance: $250,000
+        </div>
+      </div>
+
+      {/* Market Grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {mockMarketPlayers.map((player) => (
+          <motion.div 
+            key={player.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="card group hover:border-basketball-orange transition-all cursor-pointer flex flex-col"
+          >
+            <div className="relative mb-4">
+              <div className="aspect-square rounded-2xl bg-orange-50 flex items-center justify-center text-4xl font-bold text-basketball-orange overflow-hidden">
+                <img 
+                  src={`https://picsum.photos/seed/${player.name}/400`} 
+                  alt={player.name} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="absolute top-3 right-3 px-2 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                {player.pos}
+              </div>
+              <div className="absolute bottom-3 left-3 px-2 py-1 bg-basketball-orange text-white rounded-lg text-xs font-bold shadow-md">
+                Rating: {player.rating}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-1">
+              <h3 className="font-bold text-lg truncate">{player.name}</h3>
+              <p className="text-xs text-zinc-500 font-medium">{player.team}</p>
+              <p className="text-xs text-zinc-400">{player.nationality}</p>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-orange-50 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase">Asking Price</p>
+                <p className="text-lg font-bold text-basketball-orange">${player.price.toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase flex items-center gap-1 justify-end">
+                  <Clock className="w-3 h-3" />
+                  Expires
+                </p>
+                <p className="text-sm font-bold text-zinc-600">{player.expires}</p>
+              </div>
+            </div>
+
+            <button className="w-full mt-4 py-3 bg-zinc-900 text-white rounded-xl font-bold text-sm hover:bg-basketball-orange transition-all flex items-center justify-center gap-2">
+              View Profile
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Transfer Rules Info */}
+      <section className="p-8 bg-zinc-900 rounded-3xl text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-basketball-orange/20 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Market Regulations</h2>
+            <ul className="space-y-4">
+              {[
+                "Listings are active for a hard deadline of 72 hours.",
+                "Listed players are unavailable for match selection.",
+                "Successful sales incur a 5% league processing fee.",
+                "Expired listings return to your squad automatically."
+              ].map((rule, i) => (
+                <li key={i} className="flex items-start gap-3 text-zinc-400 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-basketball-orange/20 flex items-center justify-center text-basketball-orange text-xs font-bold mt-0.5">
+                    {i + 1}
+                  </div>
+                  {rule}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+            <h3 className="font-bold mb-4">Quick Tip</h3>
+            <p className="text-zinc-400 text-sm leading-relaxed">
+              High-reputation players sell faster but demand higher wages. Monitor your balance carefully before making big moves.
+            </p>
+            <button className="mt-6 text-basketball-orange font-bold text-sm flex items-center gap-2 hover:underline">
+              Read Transfer Guide <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

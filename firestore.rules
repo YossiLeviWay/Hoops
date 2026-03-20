@@ -1,0 +1,202 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - teamName: string (required)
+    //   - stadiumName: string (optional)
+    //   - bio: string (optional)
+    //   - gender: string (optional)
+    //   - avatar: string (optional)
+    //   - balance: number (required)
+    //   - reputation: number (optional)
+    //   - changesCountToday: integer (optional)
+    //   - lastChangeDate: string (optional, ISO 8601)
+    //
+    // Collection: teams
+    // Document ID: {teamId}
+    // Fields:
+    //   - name: string (required)
+    //   - leagueId: string (required)
+    //   - points: number
+    //   - wins: number
+    //   - losses: number
+    //   - goalsFor: number
+    //   - goalsAgainst: number
+    //   - motivation: number
+    //   - momentum: number
+    //   - chemistry: number
+    //   - reputation: number
+    //   - fansCount: number
+    //   - fanEnthusiasm: number
+    //   - facilities: object
+    //
+    // Collection: players
+    // Document ID: {playerId}
+    // Fields:
+    //   - name: string (required)
+    //   - nationality: string
+    //   - height: number
+    //   - weight: number
+    //   - position: string (PG, SG, SF, PF, C)
+    //   - attributes: object
+    //   - specialAbility: string
+    //   - character: string
+    //   - fatigue: number
+    //   - form: number
+    //   - totalMinutes: number
+    //   - injuryStatus: string
+    //   - teamId: string
+    //
+    // Collection: staff
+    // Document ID: {staffId}
+    // Fields:
+    //   - role: string
+    //   - ability: number
+    //   - characterization: string
+    //   - tacticsSpeciality: string
+    //   - teamId: string
+    //
+    // Collection: matches
+    // Document ID: {matchId}
+    // Fields:
+    //   - homeTeamId: string
+    //   - awayTeamId: string
+    //   - date: string (ISO 8601)
+    //   - score: object
+    //   - log: array
+    //   - status: string (scheduled, live, finished)
+    //   - leagueId: string
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "yossi.levi011@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidNumber(field, min, max) {
+      return request.resource.data[field] is number &&
+        request.resource.data[field] >= min &&
+        request.resource.data[field] <= max;
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['teamName', 'stadiumName', 'bio', 'gender', 'avatar', 'balance', 'reputation', 'changesCountToday', 'lastChangeDate', 'role']) &&
+        data.teamName is string && data.teamName.size() > 0 && data.teamName.size() < 100 &&
+        data.balance is number && data.balance >= 0;
+    }
+
+    function isValidTeam(data) {
+      return hasOnlyAllowedFields(['name', 'leagueId', 'points', 'wins', 'losses', 'goalsFor', 'goalsAgainst', 'motivation', 'momentum', 'chemistry', 'reputation', 'fansCount', 'fanEnthusiasm', 'facilities']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+        data.leagueId is string;
+    }
+
+    function isValidPlayer(data) {
+      return hasOnlyAllowedFields(['name', 'nationality', 'height', 'weight', 'position', 'attributes', 'specialAbility', 'character', 'fatigue', 'form', 'totalMinutes', 'injuryStatus', 'teamId']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+        data.position in ['PG', 'SG', 'SF', 'PF', 'C'];
+    }
+
+    function isValidStaff(data) {
+      return hasOnlyAllowedFields(['role', 'ability', 'characterization', 'tacticsSpeciality', 'teamId']) &&
+        data.role is string &&
+        data.ability is number;
+    }
+
+    function isValidMatch(data) {
+      return hasOnlyAllowedFields(['homeTeamId', 'awayTeamId', 'date', 'score', 'log', 'status', 'leagueId']) &&
+        data.homeTeamId is string &&
+        data.awayTeamId is string &&
+        data.status in ['scheduled', 'live', 'finished'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isValidTeam(request.resource.data));
+    }
+
+    match /players/{playerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isValidPlayer(request.resource.data));
+    }
+
+    match /staff/{staffId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isValidStaff(request.resource.data));
+    }
+
+    match /leagues/{leagueId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isValidMatch(request.resource.data));
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
