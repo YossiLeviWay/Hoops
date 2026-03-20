@@ -5,15 +5,15 @@ import {
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 
-export async function ensureUserProfile(uid: string, email: string | null, username?: string, gender?: string) {
+export async function ensureUserProfile(uid: string, email: string | null, teamNameInput?: string, gender?: string, stadiumNameInput?: string) {
   const userRef = doc(db, 'users', uid);
   try {
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) {
       // Create default profile
       const defaultProfile = {
-        teamName: username ? `${username}'s Team` : `Team ${uid.substring(0, 5)}`,
-        stadiumName: "Main Arena",
+        teamName: teamNameInput || `Team ${uid.substring(0, 5)}`,
+        stadiumName: stadiumNameInput || "Main Arena",
         bio: "New manager on the block.",
         gender: gender || "Not specified",
         avatar: "https://picsum.photos/seed/manager/200/200",
@@ -35,12 +35,24 @@ export async function ensureUserProfile(uid: string, email: string | null, usern
         losses: 0,
         goalsFor: 0,
         goalsAgainst: 0,
-        motivation: 70,
-        momentum: 50,
-        chemistry: 60,
+        motivation: 35, // Lowered for start of season
+        momentum: 20,   // Lowered for start of season
+        chemistry: 30,  // Lowered for start of season
         reputation: 10,
         fansCount: 500,
-        fanEnthusiasm: 50,
+        fanEnthusiasm: 40,
+        isBot: false,
+        ticketPrice: 20,
+        merchandisePrice: 15,
+        tactics: {
+          style: 'Balanced',
+          pace: 'Normal',
+          focus: 'Mixed'
+        },
+        rotationLogic: {
+          mode: 'Balanced',
+          benchDepth: 7
+        },
         facilities: {
           stadium: 1,
           training: 1,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { LogIn, Trophy, AlertCircle, UserPlus, Mail, Lock, User, ChevronDown, CheckCircle2, UserCircle } from "lucide-react";
+import { LogIn, Trophy, AlertCircle, UserPlus, Mail, Lock, User, ChevronDown, CheckCircle2, UserCircle, Building2 } from "lucide-react";
 import { 
   signInWithPopup, 
   signInAnonymously, 
@@ -44,7 +44,8 @@ export default function Login() {
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [teamName, setTeamName] = useState("");
+  const [stadiumName, setStadiumName] = useState("");
   const [gender, setGender] = useState("Male");
 
   useEffect(() => {
@@ -91,10 +92,17 @@ export default function Login() {
 
     try {
       if (mode === "signup") {
-        if (!username) throw new Error("Username is required");
+        if (!teamName) throw new Error("Team Name is required");
         const result = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(result.user);
-        await ensureUserProfile(result.user.uid, email, username, gender);
+        
+        // Add actionCodeSettings for better redirect handling
+        const actionCodeSettings = {
+          url: window.location.origin + (window.location.hostname.includes('github.io') ? '/Hoops' : '') + '/login',
+          handleCodeInApp: true,
+        };
+        
+        await sendEmailVerification(result.user, actionCodeSettings);
+        await ensureUserProfile(result.user.uid, email, teamName, gender, stadiumName);
         setMode("verify-email");
         setVerificationSent(true);
       } else {
@@ -115,11 +123,20 @@ export default function Login() {
 
   const handleResendVerification = async () => {
     if (auth.currentUser) {
+      setLoading(true);
+      setError(null);
       try {
-        await sendEmailVerification(auth.currentUser);
+        const actionCodeSettings = {
+          url: window.location.origin + (import.meta.env.DEV ? '' : '/Hoops') + '/login',
+          handleCodeInApp: true,
+        };
+        await sendEmailVerification(auth.currentUser, actionCodeSettings);
         setVerificationSent(true);
       } catch (err: any) {
+        console.error("Resend Error:", err);
         setError(err.message);
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -248,15 +265,29 @@ export default function Login() {
                     {mode === "signup" && (
                       <>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Username</label>
+                          <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Team Name</label>
                           <div className="relative">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                            <Trophy className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
                             <input 
                               type="text"
                               required
-                              value={username}
-                              onChange={(e) => setUsername(e.target.value)}
-                              placeholder="johndoe"
+                              value={teamName}
+                              onChange={(e) => setTeamName(e.target.value)}
+                              placeholder="e.g. Los Angeles Lakers"
+                              className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-basketball-orange/20 focus:border-basketball-orange outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Stadium Name</label>
+                          <div className="relative">
+                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                            <input 
+                              type="text"
+                              value={stadiumName}
+                              onChange={(e) => setStadiumName(e.target.value)}
+                              placeholder="e.g. Crypto.com Arena"
                               className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-basketball-orange/20 focus:border-basketball-orange outline-none transition-all"
                             />
                           </div>

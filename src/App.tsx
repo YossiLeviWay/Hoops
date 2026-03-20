@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
+import { initializeLeagueData } from "./services/dataInitializer";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Squad from "./pages/Squad";
@@ -28,6 +29,7 @@ export default function App() {
           setIsAuthenticated(false);
         } else {
           setIsAuthenticated(true);
+          initializeLeagueData(user.uid);
         }
       } else {
         setIsAuthenticated(false);
@@ -46,7 +48,7 @@ export default function App() {
   }
 
   return (
-    <Router basename={import.meta.env.DEV ? '/' : '/Hoops'}>
+    <Router basename={window.location.hostname.includes('github.io') ? '/Hoops' : '/'}>
       <Routes>
         <Route 
           path="/login" 

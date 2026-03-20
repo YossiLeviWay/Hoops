@@ -131,13 +131,13 @@ service cloud.firestore {
     }
 
     function isValidTeam(data) {
-      return hasOnlyAllowedFields(['name', 'leagueId', 'points', 'wins', 'losses', 'goalsFor', 'goalsAgainst', 'motivation', 'momentum', 'chemistry', 'reputation', 'fansCount', 'fanEnthusiasm', 'facilities']) &&
+      return hasOnlyAllowedFields(['name', 'leagueId', 'points', 'wins', 'losses', 'goalsFor', 'goalsAgainst', 'motivation', 'momentum', 'chemistry', 'reputation', 'fansCount', 'fanEnthusiasm', 'facilities', 'isBot', 'ticketPrice', 'merchandisePrice', 'tactics', 'rotationLogic', 'trainingFocus']) &&
         data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
         data.leagueId is string;
     }
 
     function isValidPlayer(data) {
-      return hasOnlyAllowedFields(['name', 'nationality', 'height', 'weight', 'position', 'attributes', 'specialAbility', 'character', 'fatigue', 'form', 'totalMinutes', 'injuryStatus', 'teamId']) &&
+      return hasOnlyAllowedFields(['name', 'nationality', 'height', 'weight', 'position', 'attributes', 'specialAbility', 'character', 'fatigue', 'energy', 'form', 'totalMinutes', 'injuryStatus', 'teamId', 'isCaptain', 'isStarter', 'isRoster', 'onTransferList', 'transferPrice', 'individualTraining']) &&
         data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
         data.position in ['PG', 'SG', 'SF', 'PF', 'C'];
     }

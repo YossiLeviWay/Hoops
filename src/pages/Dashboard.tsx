@@ -1,6 +1,18 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { useTeam } from "../hooks/useTeam";
 import { useUser } from "../hooks/useUser";
+import { useState, useEffect } from "react";
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs,
+  onSnapshot
+} from "firebase/firestore";
+import { db, auth } from "../firebase";
 import { 
   TrendingUp, 
   Users, 
@@ -10,12 +22,64 @@ import {
   ChevronRight,
   Activity,
   Heart,
-  Zap
+  Zap,
+  Coins
 } from "lucide-react";
 
 export default function Dashboard() {
   const { teamData, loading: teamLoading } = useTeam();
   const { userData, loading: userLoading } = useUser();
+  const [nextMatch, setNextMatch] = useState<any>(null);
+  const [recentMatches, setRecentMatches] = useState<any[]>([]);
+  const [topPlayers, setTopPlayers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!userData) return;
+
+    // Fetch Next Match
+    const nextMatchQuery = query(
+      collection(db, 'matches'),
+      where('status', '==', 'scheduled'),
+      orderBy('date', 'asc'),
+      limit(1)
+    );
+
+    const unsubscribeNext = onSnapshot(nextMatchQuery, (snap) => {
+      if (!snap.empty) {
+        setNextMatch(snap.docs[0].data());
+      }
+    });
+
+    // Fetch Recent Matches
+    const recentMatchesQuery = query(
+      collection(db, 'matches'),
+      where('status', '==', 'finished'),
+      orderBy('date', 'desc'),
+      limit(3)
+    );
+
+    const unsubscribeRecent = onSnapshot(recentMatchesQuery, (snap) => {
+      setRecentMatches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    // Fetch Top Players
+    const topPlayersQuery = query(
+      collection(db, 'players'),
+      where('teamId', '==', auth.currentUser?.uid),
+      orderBy('overall', 'desc'),
+      limit(3)
+    );
+
+    const unsubscribePlayers = onSnapshot(topPlayersQuery, (snap) => {
+      setTopPlayers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeNext();
+      unsubscribeRecent();
+      unsubscribePlayers();
+    };
+  }, [userData]);
 
   const stats = [
     { name: "Motivation", value: teamData?.motivation || 0, icon: Heart, color: "text-red-500", bg: "bg-red-50" },
@@ -42,9 +106,11 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3 p-2 bg-white rounded-2xl border border-orange-100 shadow-sm">
           <div className="px-4 py-2 bg-orange-50 rounded-xl">
-            <span className="text-sm font-bold text-basketball-orange">Next Match: 2d 14h</span>
+            <span className="text-sm font-bold text-basketball-orange">
+              {nextMatch ? `Next Match: ${new Date(nextMatch.date).toLocaleDateString()}` : "No matches scheduled"}
+            </span>
           </div>
-          <button className="btn-primary py-2 px-4 text-sm">View Tactics</button>
+          <Link to="/tactics" className="btn-primary py-2 px-4 text-sm">View Tactics</Link>
         </div>
       </header>
 
@@ -84,28 +150,28 @@ export default function Dashboard() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Recent Matches</h2>
-              <button className="text-basketball-orange font-bold text-sm flex items-center gap-1">
+              <Link to="/league" className="text-basketball-orange font-bold text-sm flex items-center gap-1">
                 View All <ChevronRight className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
             <div className="grid gap-4">
-              {[1, 2].map((m) => (
-                <div key={m} className="card flex items-center justify-between hover:border-basketball-orange transition-all cursor-pointer">
+              {recentMatches.length > 0 ? recentMatches.map((m) => (
+                <div key={m.id} className="card flex items-center justify-between hover:border-basketball-orange transition-all cursor-pointer">
                   <div className="flex items-center gap-6">
                     <div className="text-center">
-                      <p className="text-xs text-zinc-400 font-bold uppercase">Mar 17</p>
-                      <p className="text-lg font-bold">W</p>
+                      <p className="text-xs text-zinc-400 font-bold uppercase">{new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                      <p className="text-lg font-bold">{m.score.home > m.score.away ? 'W' : 'L'}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="font-bold">{teamData?.name || "Your Team"}</p>
+                        <p className="font-bold truncate max-w-[100px]">{m.homeTeamId === auth.currentUser?.uid ? teamData?.name : "Opponent"}</p>
                         <p className="text-xs text-zinc-500">Home</p>
                       </div>
                       <div className="px-3 py-1 bg-zinc-100 rounded-lg font-bold text-lg">
-                        102 - 94
+                        {m.score.home} - {m.score.away}
                       </div>
                       <div>
-                        <p className="font-bold">Rivals FC</p>
+                        <p className="font-bold truncate max-w-[100px]">{m.awayTeamId === auth.currentUser?.uid ? teamData?.name : "Opponent"}</p>
                         <p className="text-xs text-zinc-500">Away</p>
                       </div>
                     </div>
@@ -114,7 +180,11 @@ export default function Dashboard() {
                     <Activity className="w-5 h-5 text-zinc-400" />
                   </button>
                 </div>
-              ))}
+              )) : (
+                <div className="card text-center py-10 text-zinc-500">
+                  No recent matches. Season starts soon!
+                </div>
+              )}
             </div>
           </section>
 
@@ -126,8 +196,8 @@ export default function Dashboard() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-500 mt-1" />
                   <div>
-                    <h3 className="font-bold">Injury Alert</h3>
-                    <p className="text-sm text-zinc-500 mt-1">John Doe (SF) suffered a minor ankle sprain. Expected out: 3 days.</p>
+                    <h3 className="font-bold">Season Start</h3>
+                    <p className="text-sm text-zinc-500 mt-1">The new season kicks off on March 21st. Make sure your squad is ready!</p>
                   </div>
                 </div>
               </div>
@@ -135,8 +205,8 @@ export default function Dashboard() {
                 <div className="flex items-start gap-3">
                   <TrendingUp className="w-5 h-5 text-emerald-500 mt-1" />
                   <div>
-                    <h3 className="font-bold">Form Peak</h3>
-                    <p className="text-sm text-zinc-500 mt-1">Mike Smith is showing exceptional form in training. Motivation +5.</p>
+                    <h3 className="font-bold">Training Focus</h3>
+                    <p className="text-sm text-zinc-500 mt-1">Intensive individual training is now available in the Training menu.</p>
                   </div>
                 </div>
               </div>
@@ -150,28 +220,26 @@ export default function Dashboard() {
           <section className="card">
             <h2 className="text-xl font-bold mb-6">Top Players</h2>
             <div className="space-y-6">
-              {[
-                { name: "Mike Smith", stat: "24.5 PPG", pos: "SG" },
-                { name: "John Doe", stat: "12.2 RPG", pos: "C" },
-                { name: "Alex Johnson", stat: "8.4 APG", pos: "PG" },
-              ].map((player, i) => (
-                <div key={player.name} className="flex items-center gap-3">
+              {topPlayers.length > 0 ? topPlayers.map((player, i) => (
+                <Link to={`/squad`} key={player.id} className="flex items-center gap-3 hover:bg-orange-50 p-2 rounded-xl transition-all">
                   <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-basketball-orange">
                     {player.name[0]}
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-sm">{player.name}</p>
-                    <p className="text-xs text-zinc-500">{player.pos}</p>
+                    <p className="text-xs text-zinc-500">{player.position}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-basketball-orange">{player.stat}</p>
+                    <p className="font-bold text-basketball-orange">{player.overall} OVR</p>
                   </div>
-                </div>
-              ))}
+                </Link>
+              )) : (
+                <p className="text-sm text-zinc-500">No players found.</p>
+              )}
             </div>
-            <button className="w-full mt-6 py-3 text-sm font-bold text-zinc-500 hover:text-basketball-orange transition-all border-t border-orange-50">
+            <Link to="/squad" className="block w-full mt-6 py-3 text-sm font-bold text-center text-zinc-500 hover:text-basketball-orange transition-all border-t border-orange-50">
               View Full Squad
-            </button>
+            </Link>
           </section>
 
           {/* Community News */}
@@ -179,12 +247,12 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold mb-4">League News</h2>
             <div className="space-y-4">
               <div className="p-4 bg-white/10 rounded-xl">
-                <p className="text-xs font-bold uppercase opacity-60">Liga C</p>
-                <p className="font-medium mt-1">Transfer window opens in 5 days. Prepare your bids!</p>
+                <p className="text-xs font-bold uppercase opacity-60">Season 2026</p>
+                <p className="font-medium mt-1">Transfer window is open! Bot teams are actively listing players.</p>
               </div>
               <div className="p-4 bg-white/10 rounded-xl">
-                <p className="text-xs font-bold uppercase opacity-60">Global</p>
-                <p className="font-medium mt-1">New season rewards announced. Top 3 teams get stadium upgrades.</p>
+                <p className="text-xs font-bold uppercase opacity-60">Economy</p>
+                <p className="font-medium mt-1">Ticket prices now affect fan attendance and revenue. Check your Fans menu.</p>
               </div>
             </div>
           </section>

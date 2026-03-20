@@ -31,10 +31,17 @@
         "specialAbility": { "type": "string" },
         "character": { "type": "string" },
         "fatigue": { "type": "number" },
+        "energy": { "type": "number" },
         "form": { "type": "number" },
         "totalMinutes": { "type": "number" },
         "injuryStatus": { "type": "string" },
-        "teamId": { "type": "string" }
+        "teamId": { "type": "string" },
+        "isCaptain": { "type": "boolean" },
+        "isStarter": { "type": "boolean" },
+        "isRoster": { "type": "boolean" },
+        "onTransferList": { "type": "boolean" },
+        "transferPrice": { "type": "number" },
+        "individualTraining": { "type": "string" }
       }
     },
     "Staff": {
@@ -67,7 +74,13 @@
         "reputation": { "type": "number" },
         "fansCount": { "type": "number" },
         "fanEnthusiasm": { "type": "number" },
-        "facilities": { "type": "object" }
+        "facilities": { "type": "object" },
+        "isBot": { "type": "boolean" },
+        "ticketPrice": { "type": "number" },
+        "merchandisePrice": { "type": "number" },
+        "tactics": { "type": "object" },
+        "rotationLogic": { "type": "object" },
+        "trainingFocus": { "type": "object" }
       }
     },
     "Match": {

@@ -3,6 +3,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 
 export interface TeamData {
+  id: string;
   name: string;
   leagueId: string;
   points: number;
@@ -22,6 +23,19 @@ export interface TeamData {
     medical: number;
     youth: number;
   };
+  isBot?: boolean;
+  ticketPrice?: number;
+  merchandisePrice?: number;
+  tactics?: {
+    style: string;
+    pace: string;
+    focus: string;
+  };
+  rotationLogic?: {
+    mode: string;
+    benchDepth: number;
+  };
+  trainingFocus?: Record<string, number>;
 }
 
 export function useTeam() {
@@ -41,7 +55,7 @@ export function useTeam() {
     const teamRef = doc(db, 'teams', user.uid);
     const unsubscribe = onSnapshot(teamRef, (docSnap) => {
       if (docSnap.exists()) {
-        setTeamData(docSnap.data() as TeamData);
+        setTeamData({ id: docSnap.id, ...docSnap.data() } as TeamData);
       } else {
         setTeamData(null);
       }

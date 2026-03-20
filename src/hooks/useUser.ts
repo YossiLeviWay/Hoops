@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 
 export interface UserData {
+  id: string;
   teamName: string;
   stadiumName: string;
   bio: string;
@@ -21,28 +23,31 @@ export function useUser() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
-      setUserData(null);
-      setLoading(false);
-      return;
-    }
-
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setUserData(docSnap.data() as UserData);
-      } else {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
         setUserData(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-      setError(err.message);
-      setLoading(false);
+
+      const userRef = doc(db, 'users', user.uid);
+      const unsubscribeSnap = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setUserData({ id: docSnap.id, ...docSnap.data() } as UserData);
+        } else {
+          setUserData(null);
+        }
+        setLoading(false);
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+        setError(err.message);
+        setLoading(false);
+      });
+
+      return () => unsubscribeSnap();
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   return { userData, loading, error };

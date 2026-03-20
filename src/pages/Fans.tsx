@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useTeam } from "../hooks/useTeam";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase";
 import { 
   Users, 
   Heart, 
@@ -10,12 +13,47 @@ import {
   Smile,
   Frown,
   Meh,
-  Info
+  Info,
+  Save,
+  RefreshCw
 } from "lucide-react";
 
 export default function Fans() {
-  const [ticketPrice, setTicketPrice] = React.useState(25);
-  const [merchPrice, setMerchPrice] = React.useState(45);
+  const { teamData, loading } = useTeam();
+  const [ticketPrice, setTicketPrice] = useState(25);
+  const [merchPrice, setMerchPrice] = useState(45);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (teamData) {
+      setTicketPrice(teamData.ticketPrice || 25);
+      setMerchPrice(teamData.merchandisePrice || 45);
+    }
+  }, [teamData]);
+
+  const handleUpdatePrices = async () => {
+    if (!teamData?.id) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'teams', teamData.id), {
+        ticketPrice: ticketPrice,
+        merchandisePrice: merchPrice
+      });
+      alert("Prices updated successfully!");
+    } catch (error) {
+      console.error("Error updating prices:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-10 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-10 space-y-8">
@@ -26,9 +64,16 @@ export default function Fans() {
         </div>
         <div className="flex items-center gap-3">
           <div className="px-6 py-2 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm">
-            Total Fans: 1,240
+            Total Fans: {teamData?.fansCount?.toLocaleString() || 0}
           </div>
-          <button className="btn-primary">Update Prices</button>
+          <button 
+            onClick={handleUpdatePrices}
+            disabled={saving}
+            className="btn-primary flex items-center gap-2"
+          >
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Update Prices
+          </button>
         </div>
       </header>
 
@@ -40,11 +85,11 @@ export default function Fans() {
             <Heart className="w-5 h-5 opacity-60" />
           </div>
           <div className="flex items-end gap-3 mb-4">
-            <div className="text-4xl font-bold">68%</div>
+            <div className="text-4xl font-bold">{teamData?.fanEnthusiasm || 0}%</div>
             <Smile className="w-8 h-8 mb-1" />
           </div>
           <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-            <div className="h-full bg-white" style={{ width: "68%" }} />
+            <div className="h-full bg-white" style={{ width: `${teamData?.fanEnthusiasm || 0}%` }} />
           </div>
           <p className="text-xs mt-4 opacity-80">Boosted by recent wins and fair pricing.</p>
         </div>
@@ -54,7 +99,7 @@ export default function Fans() {
             <h3 className="font-bold text-zinc-500">Weekly Growth</h3>
             <TrendingUp className="w-5 h-5 text-emerald-500" />
           </div>
-          <div className="text-4xl font-bold text-zinc-900">+142</div>
+          <div className="text-4xl font-bold text-zinc-900">+{Math.floor((teamData?.reputation || 0) * 0.5)}</div>
           <p className="text-xs mt-4 text-zinc-500">New fans added this week.</p>
         </div>
 
@@ -63,7 +108,9 @@ export default function Fans() {
             <h3 className="font-bold text-zinc-500">Avg. Attendance</h3>
             <Users className="w-5 h-5 text-blue-500" />
           </div>
-          <div className="text-4xl font-bold text-zinc-900">84%</div>
+          <div className="text-4xl font-bold text-zinc-900">
+            {Math.min(100, Math.floor((teamData?.fanEnthusiasm || 0) * 0.8 + (teamData?.momentum || 0) * 0.2))}%
+          </div>
           <p className="text-xs mt-4 text-zinc-500">Stadium capacity utilization.</p>
         </div>
       </div>
@@ -148,7 +195,7 @@ export default function Fans() {
                   Positive Sentiment
                 </div>
                 <p className="text-sm font-medium text-zinc-700 leading-relaxed">
-                  "The 'Blue Crew' absolutely adores Mike Smith—his Work Ethic is inspiring the community."
+                  "The fans absolutely adore the team's momentum—the chemistry is inspiring the community."
                 </p>
                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Effect: Boosts Team-First Attitude</p>
               </div>
@@ -159,7 +206,7 @@ export default function Fans() {
                   Negative Sentiment
                 </div>
                 <p className="text-sm font-medium text-zinc-700 leading-relaxed">
-                  "Local talk show calls for the benching of John Doe—fans cite a lack of Aggressiveness."
+                  "Local talk show calls for more investment in facilities—fans cite a lack of ambition."
                 </p>
                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Effect: Drain on Enthusiasm Gauge</p>
               </div>

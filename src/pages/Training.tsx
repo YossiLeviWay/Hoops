@@ -1,5 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { usePlayers, Player } from "../hooks/usePlayers";
+import { useTeam } from "../hooks/useTeam";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase";
 import { 
   Dumbbell, 
   Target, 
@@ -10,23 +14,29 @@ import {
   Minus, 
   AlertCircle,
   TrendingUp,
-  Heart
+  Heart,
+  Save,
+  RefreshCw
 } from "lucide-react";
 
-const mockPlayers = [
-  { id: "1", name: "Mike Smith", pos: "SG", ability: "3-Point Shooting", fatigue: 12 },
-  { id: "2", name: "John Doe", pos: "C", ability: "Rebounding", fatigue: 45 },
-  { id: "3", name: "Alex Johnson", pos: "PG", ability: "Passing Accuracy", fatigue: 25 },
-];
-
 export default function Training() {
-  const [points, setPoints] = React.useState<Record<string, number>>({
+  const { players, loading: playersLoading } = usePlayers();
+  const { teamData, loading: teamLoading } = useTeam();
+  const [saving, setSaving] = useState(false);
+
+  const [points, setPoints] = useState<Record<string, number>>({
     offensive: 20,
     defensive: 20,
     skill: 20,
     conditioning: 20,
     teamBuilding: 20,
   });
+
+  useEffect(() => {
+    if (teamData?.trainingFocus) {
+      setPoints(teamData.trainingFocus);
+    }
+  }, [teamData]);
 
   const totalPoints = 100;
   const usedPoints = Object.values(points).reduce((a: number, b: number) => a + b, 0);
@@ -37,6 +47,57 @@ export default function Training() {
       setPoints({ ...points, [key]: currentVal + delta });
     }
   };
+
+  const handleApplySchedule = async () => {
+    if (!teamData?.id) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'teams', teamData.id), {
+        trainingFocus: points
+      });
+      alert("Training schedule applied successfully!");
+    } catch (error) {
+      console.error("Error applying schedule:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRestPlayer = async (player: Player) => {
+    try {
+      if (player.energy >= 100) return;
+      const newEnergy = Math.min(100, player.energy + 20);
+      await updateDoc(doc(db, 'players', player.id), {
+        energy: newEnergy
+      });
+    } catch (error) {
+      console.error("Error resting player:", error);
+    }
+  };
+
+  const handleIntensiveTraining = async (player: Player) => {
+    try {
+      const intensiveCount = players.filter(p => p.individualTraining === 'Intensive').length;
+      if (player.individualTraining !== 'Intensive' && intensiveCount >= 3) {
+        alert("You can only have 3 players in intensive training.");
+        return;
+      }
+      const newTraining = player.individualTraining === 'Intensive' ? 'Normal' : 'Intensive';
+      await updateDoc(doc(db, 'players', player.id), {
+        individualTraining: newTraining
+      });
+    } catch (error) {
+      console.error("Error setting intensive training:", error);
+    }
+  };
+
+  if (playersLoading || teamLoading) {
+    return (
+      <div className="p-10 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-10 space-y-8">
@@ -49,7 +110,14 @@ export default function Training() {
           <div className={`px-6 py-2 rounded-xl font-bold text-sm ${usedPoints === totalPoints ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
             Points: {usedPoints} / {totalPoints}
           </div>
-          <button className="btn-primary">Apply Schedule</button>
+          <button 
+            onClick={handleApplySchedule}
+            disabled={saving}
+            className="btn-primary flex items-center gap-2"
+          >
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Apply Schedule
+          </button>
         </div>
       </header>
 
@@ -79,14 +147,14 @@ export default function Training() {
                   </div>
                   <div className="flex items-center gap-4">
                     <button 
-                      onClick={() => updatePoints(item.key as any, -5)}
+                      onClick={() => updatePoints(item.key, -5)}
                       className="p-2 hover:bg-white rounded-lg transition-all text-zinc-400 hover:text-red-500"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className="w-8 text-center font-bold text-lg">{points[item.key as keyof typeof points]}</span>
+                    <span className="w-8 text-center font-bold text-lg">{points[item.key]}</span>
                     <button 
-                      onClick={() => updatePoints(item.key as any, 5)}
+                      onClick={() => updatePoints(item.key, 5)}
                       className="p-2 hover:bg-white rounded-lg transition-all text-zinc-400 hover:text-emerald-500"
                     >
                       <Plus className="w-4 h-4" />
@@ -105,17 +173,33 @@ export default function Training() {
             </h2>
             <p className="text-sm text-zinc-500 mb-6">Select up to 3 players to double their skill improvement rate. Note: Increases fatigue and injury risk.</p>
             <div className="grid sm:grid-cols-3 gap-4">
-              {mockPlayers.map((player) => (
-                <div key={player.id} className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-basketball-orange mx-auto flex items-center justify-center text-white font-bold">
+              {players.map((player) => (
+                <div 
+                  key={player.id} 
+                  className={`p-4 border rounded-2xl text-center space-y-3 transition-all ${
+                    player.individualTraining === 'Intensive' 
+                      ? 'bg-orange-50 border-orange-200' 
+                      : 'bg-white border-zinc-100'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center text-white font-bold ${
+                    player.individualTraining === 'Intensive' ? 'bg-basketball-orange' : 'bg-zinc-200'
+                  }`}>
                     {player.name[0]}
                   </div>
                   <div>
                     <p className="font-bold text-sm">{player.name}</p>
-                    <p className="text-xs text-zinc-500">{player.ability}</p>
+                    <p className="text-xs text-zinc-500">{player.position}</p>
                   </div>
-                  <button className="w-full py-2 bg-white border border-orange-100 rounded-xl text-xs font-bold text-basketball-orange hover:bg-basketball-orange hover:text-white transition-all">
-                    Select
+                  <button 
+                    onClick={() => handleIntensiveTraining(player)}
+                    className={`w-full py-2 rounded-xl text-xs font-bold transition-all ${
+                      player.individualTraining === 'Intensive'
+                        ? 'bg-basketball-orange text-white'
+                        : 'bg-white border border-orange-100 text-basketball-orange hover:bg-orange-50'
+                    }`}
+                  >
+                    {player.individualTraining === 'Intensive' ? 'Selected' : 'Select'}
                   </button>
                 </div>
               ))}
@@ -131,9 +215,9 @@ export default function Training() {
               Chemistry Gauge
             </h2>
             <div className="text-center p-8 bg-purple-50 rounded-3xl border border-purple-100">
-              <div className="text-5xl font-bold text-purple-600 mb-4">78%</div>
+              <div className="text-5xl font-bold text-purple-600 mb-4">{teamData?.chemistry || 0}%</div>
               <div className="w-full h-3 bg-white rounded-full overflow-hidden">
-                <div className="h-full bg-purple-600" style={{ width: "78%" }} />
+                <div className="h-full bg-purple-600" style={{ width: `${teamData?.chemistry || 0}%` }} />
               </div>
               <p className="text-xs text-purple-500 mt-4 font-medium">Higher chemistry improves tactical success probability.</p>
             </div>
@@ -142,10 +226,10 @@ export default function Training() {
           <section className="card">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-500" />
-              Fatigue Management
+              Energy Management
             </h2>
             <div className="space-y-4">
-              {mockPlayers.map((player) => (
+              {players.map((player) => (
                 <div key={player.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-bold">
@@ -154,10 +238,14 @@ export default function Training() {
                     <span className="text-sm font-bold">{player.name}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-bold ${player.fatigue > 40 ? 'text-red-500' : 'text-emerald-500'}`}>
-                      {player.fatigue}%
+                    <span className={`text-xs font-bold ${player.energy < 40 ? 'text-red-500' : 'text-emerald-500'}`}>
+                      {player.energy}%
                     </span>
-                    <button className="px-3 py-1 bg-white border border-zinc-200 rounded-lg text-[10px] font-bold uppercase hover:bg-orange-50 hover:text-basketball-orange transition-all">
+                    <button 
+                      onClick={() => handleRestPlayer(player)}
+                      disabled={player.energy >= 100}
+                      className="px-3 py-1 bg-white border border-zinc-200 rounded-lg text-[10px] font-bold uppercase hover:bg-orange-50 hover:text-basketball-orange transition-all disabled:opacity-50"
+                    >
                       Rest
                     </button>
                   </div>
@@ -165,7 +253,7 @@ export default function Training() {
               ))}
             </div>
             <p className="text-[10px] text-zinc-400 mt-4 leading-relaxed">
-              Resting provides a +20 reduction in Fatigue but temporarily reduces the Momentum bar.
+              Resting provides a +20 increase in Energy but temporarily reduces the Momentum bar.
             </p>
           </section>
         </div>

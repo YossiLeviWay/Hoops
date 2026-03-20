@@ -19,7 +19,8 @@ import {
   Building2,
   Dumbbell,
   Heart,
-  ListOrdered
+  ListOrdered,
+  Coins
 } from "lucide-react";
 
 const BasketballIcon = (props: any) => (
@@ -133,11 +134,17 @@ export default function Layout({ children }: LayoutProps) {
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-orange-100 p-4 flex items-center justify-between z-50">
         <div className="flex items-center gap-2">
           <BasketballIcon className="w-6 h-6 text-basketball-orange" />
-          <span className="font-bold">Hoops Manager</span>
+          <span className="font-bold tracking-tight">Hoops Manager</span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X /> : <Menu />}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full">
+            <Coins className="w-4 h-4" />
+            <span className="text-sm font-bold">${userData?.balance?.toLocaleString() || 0}</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -179,6 +186,19 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 pt-20 lg:pt-0 overflow-auto">
+        <div className="hidden lg:flex sticky top-0 bg-white/80 backdrop-blur-md border-b border-orange-50 p-4 justify-end items-center gap-6 z-30">
+          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Coins className="w-5 h-5" />
+            <span className="font-bold tracking-tight">${userData?.balance?.toLocaleString() || 0}</span>
+          </div>
+          <div className="h-6 w-px bg-orange-100" />
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-zinc-500">Season 2026</span>
+            <div className="px-3 py-1 bg-orange-100 text-basketball-orange rounded-full text-xs font-bold uppercase">
+              Pre-Season
+            </div>
+          </div>
+        </div>
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

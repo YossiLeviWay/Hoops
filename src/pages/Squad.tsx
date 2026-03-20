@@ -1,4 +1,9 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
+import { usePlayers, Player } from "../hooks/usePlayers";
+import { useTeam } from "../hooks/useTeam";
+import { doc, updateDoc, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
+import { db, auth } from "../firebase";
 import { 
   Users, 
   Heart, 
@@ -8,18 +13,64 @@ import {
   Shield,
   Target,
   Eye,
-  Info
+  Info,
+  TrendingUp,
+  Star,
+  UserCheck
 } from "lucide-react";
 
-const mockPlayers = [
-  { id: "1", name: "Mike Smith", pos: "SG", fatigue: 12, form: 85, minutes: 450, rating: 88, status: "Active", height: "198cm", nationality: "USA" },
-  { id: "2", name: "John Doe", pos: "C", fatigue: 45, form: 72, minutes: 380, rating: 84, status: "Injured", height: "211cm", nationality: "Canada" },
-  { id: "3", name: "Alex Johnson", pos: "PG", fatigue: 25, form: 91, minutes: 420, rating: 90, status: "Active", height: "188cm", nationality: "UK" },
-  { id: "4", name: "Kevin Durant", pos: "SF", fatigue: 30, form: 88, minutes: 400, rating: 92, status: "Active", height: "208cm", nationality: "USA" },
-  { id: "5", name: "Nikola Jokic", pos: "C", fatigue: 15, form: 95, minutes: 460, rating: 96, status: "Active", height: "211cm", nationality: "Serbia" },
-];
-
 export default function Squad() {
+  const { players, loading: playersLoading } = usePlayers();
+  const { teamData, loading: teamLoading } = useTeam();
+
+  const handleSetCaptain = async (playerId: string) => {
+    try {
+      const batch = writeBatch(db);
+      // Unset current captain
+      players.forEach(p => {
+        if (p.isCaptain) {
+          batch.update(doc(db, 'players', p.id), { isCaptain: false });
+        }
+      });
+      // Set new captain
+      batch.update(doc(db, 'players', playerId), { isCaptain: true });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error setting captain:", error);
+    }
+  };
+
+  const handleToggleStarter = async (player: Player) => {
+    try {
+      const startersCount = players.filter(p => p.isStarter).length;
+      if (!player.isStarter && startersCount >= 5) {
+        alert("You can only have 5 starters.");
+        return;
+      }
+      await updateDoc(doc(db, 'players', player.id), {
+        isStarter: !player.isStarter
+      });
+    } catch (error) {
+      console.error("Error toggling starter:", error);
+    }
+  };
+
+  const calculateTeamStat = (stat: keyof Player['attributes']) => {
+    if (players.length === 0) return 0;
+    const starters = players.filter(p => p.isStarter);
+    const targetPlayers = starters.length > 0 ? starters : players;
+    const sum = targetPlayers.reduce((acc, p) => acc + p.attributes[stat], 0);
+    return Math.round(sum / targetPlayers.length);
+  };
+
+  if (playersLoading || teamLoading) {
+    return (
+      <div className="p-10 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-10 space-y-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -28,10 +79,9 @@ export default function Squad() {
           <p className="text-zinc-500">Manage your 12-man roster and monitor player fitness.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="btn-primary">Set Captain</button>
-          <button className="px-6 py-2 bg-white border border-orange-100 rounded-xl font-semibold shadow-sm hover:bg-orange-50 transition-all">
+          <Link to="/training" className="px-6 py-2 bg-white border border-orange-100 rounded-xl font-semibold shadow-sm hover:bg-orange-50 transition-all">
             Intensive Training
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -42,9 +92,9 @@ export default function Squad() {
             <h3 className="font-bold">Team Chemistry</h3>
             <Users className="w-5 h-5 opacity-60" />
           </div>
-          <div className="text-4xl font-bold mb-4">78%</div>
+          <div className="text-4xl font-bold mb-4">{teamData?.chemistry || 0}%</div>
           <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-            <div className="h-full bg-white" style={{ width: "78%" }} />
+            <div className="h-full bg-white" style={{ width: `${teamData?.chemistry || 0}%` }} />
           </div>
           <p className="text-xs mt-4 opacity-80">Higher chemistry improves tactical execution.</p>
         </div>
@@ -54,9 +104,9 @@ export default function Squad() {
             <h3 className="font-bold">Motivation</h3>
             <Heart className="w-5 h-5 text-red-500" />
           </div>
-          <div className="text-4xl font-bold mb-4">85%</div>
+          <div className="text-4xl font-bold mb-4">{teamData?.motivation || 0}%</div>
           <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
-            <div className="h-full bg-red-500" style={{ width: "85%" }} />
+            <div className="h-full bg-red-500" style={{ width: `${teamData?.motivation || 0}%` }} />
           </div>
           <p className="text-xs mt-4 text-zinc-500">Influenced by wins and staff character.</p>
         </div>
@@ -66,9 +116,9 @@ export default function Squad() {
             <h3 className="font-bold">Momentum</h3>
             <Zap className="w-5 h-5 text-yellow-500" />
           </div>
-          <div className="text-4xl font-bold mb-4">62%</div>
+          <div className="text-4xl font-bold mb-4">{teamData?.momentum || 0}%</div>
           <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
-            <div className="h-full bg-yellow-500" style={{ width: "62%" }} />
+            <div className="h-full bg-yellow-500" style={{ width: `${teamData?.momentum || 0}%` }} />
           </div>
           <p className="text-xs mt-4 text-zinc-500">Based on current form and fitness.</p>
         </div>
@@ -91,44 +141,50 @@ export default function Squad() {
                 <th className="px-6 py-4">Player</th>
                 <th className="px-6 py-4">Pos</th>
                 <th className="px-6 py-4">Rating</th>
-                <th className="px-6 py-4">Fatigue</th>
+                <th className="px-6 py-4">Energy</th>
                 <th className="px-6 py-4">Form</th>
-                <th className="px-6 py-4">Season Mins</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4"></th>
+                <th className="px-6 py-4">Starter</th>
+                <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-orange-50">
-              {mockPlayers.map((player) => (
+              {players.map((player) => (
                 <tr key={player.id} className="hover:bg-orange-50/50 transition-all group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-basketball-orange">
-                        {player.name[0]}
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-basketball-orange">
+                          {player.name[0]}
+                        </div>
+                        {player.isCaptain && (
+                          <div className="absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full p-0.5">
+                            <Star className="w-3 h-3 fill-current" />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-sm">{player.name}</p>
-                        <p className="text-xs text-zinc-500">{player.nationality} · {player.height}</p>
+                        <p className="text-xs text-zinc-500">{player.nationality} · {player.height}cm</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-zinc-100 rounded-md text-xs font-bold text-zinc-600">
-                      {player.pos}
+                      {player.position}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-bold text-lg">{player.rating}</span>
+                    <span className="font-bold text-lg">{player.overall}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                         <div 
-                          className={`h-full ${player.fatigue > 40 ? 'bg-red-500' : 'bg-emerald-500'}`} 
-                          style={{ width: `${player.fatigue}%` }}
+                          className={`h-full ${player.energy < 40 ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                          style={{ width: `${player.energy}%` }}
                         />
                       </div>
-                      <span className="text-xs font-bold">{player.fatigue}%</span>
+                      <span className="text-xs font-bold">{player.energy}%</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -137,20 +193,27 @@ export default function Squad() {
                       {player.form}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-600">
-                    {player.minutes}m
+                  <td className="px-6 py-4">
+                    <button 
+                      onClick={() => handleToggleStarter(player)}
+                      className={`p-2 rounded-xl transition-all ${player.isStarter ? 'bg-basketball-orange text-white' : 'bg-zinc-100 text-zinc-400 hover:bg-orange-100'}`}
+                    >
+                      <UserCheck className="w-5 h-5" />
+                    </button>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      player.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {player.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-2 hover:bg-white rounded-xl shadow-sm border border-transparent hover:border-orange-100 transition-all opacity-0 group-hover:opacity-100">
-                      <Eye className="w-4 h-4 text-zinc-400" />
-                    </button>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={() => handleSetCaptain(player.id)}
+                        className={`p-2 rounded-xl border ${player.isCaptain ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-white border-orange-100 text-zinc-400 hover:text-yellow-600'}`}
+                        title="Set as Captain"
+                      >
+                        <Star className={`w-4 h-4 ${player.isCaptain ? 'fill-current' : ''}`} />
+                      </button>
+                      <button className="p-2 bg-white border border-orange-100 rounded-xl text-zinc-400 hover:text-basketball-orange hover:border-basketball-orange transition-all">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -168,10 +231,9 @@ export default function Squad() {
           </h2>
           <div className="space-y-4">
             {[
-              { label: "Shooting", value: 82 },
-              { label: "Passing", value: 75 },
-              { label: "Inside Scoring", value: 88 },
-              { label: "Ball Handling", value: 70 },
+              { label: "Shooting", value: calculateTeamStat('shooting') },
+              { label: "Passing", value: calculateTeamStat('passing') },
+              { label: "Athleticism", value: calculateTeamStat('athleticism') },
             ].map((stat) => (
               <div key={stat.label} className="space-y-1">
                 <div className="flex justify-between text-sm font-bold">
@@ -193,10 +255,8 @@ export default function Squad() {
           </h2>
           <div className="space-y-4">
             {[
-              { label: "Perimeter Defense", value: 78 },
-              { label: "Interior Defense", value: 85 },
-              { label: "Rebounding", value: 92 },
-              { label: "Steals/Blocks", value: 65 },
+              { label: "Defense", value: calculateTeamStat('defense') },
+              { label: "Rebounding", value: calculateTeamStat('rebounding') },
             ].map((stat) => (
               <div key={stat.label} className="space-y-1">
                 <div className="flex justify-between text-sm font-bold">
@@ -212,25 +272,5 @@ export default function Squad() {
         </div>
       </section>
     </div>
-  );
-}
-
-function TrendingUp(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
   );
 }
