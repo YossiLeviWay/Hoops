@@ -46,7 +46,7 @@ export default function App() {
   }
 
   return (
-    <Router basename={import.meta.env.DEV ? '/' : '/Hoops_Manager_Pro'}>
+    <Router basename={import.meta.env.DEV ? '/' : '/Hoops'}>
       <Routes>
         <Route 
           path="/login" 
