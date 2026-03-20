@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../services/firestoreService';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 
 export interface TeamData {
   name: string;
